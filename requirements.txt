@@ -1,0 +1,2 @@
+aiohttp
+youtube_dl
