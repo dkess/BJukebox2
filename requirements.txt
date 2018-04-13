@@ -1,2 +1,4 @@
 aiohttp
 youtube_dl
+mypy
+python-mpd2
