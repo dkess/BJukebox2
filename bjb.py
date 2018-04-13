@@ -146,6 +146,9 @@ async def websocket(request):
     request.app['connections'].remove(ws.send_str)
     return ws
 
+async def on_shutdown(app):
+    for ws in app['connections']:
+        await ws.close()
 
 async def app_factory():
     mpd_conn = mpd.MPDConnection('localhost', 6600)
@@ -161,6 +164,7 @@ async def app_factory():
     static_folder = os.path.join(project_root, 'static')
     app.router.add_static('/static/', static_folder)
     app.add_routes(routes)
+    app.on_shutdown.append(on_shutdown)
     return app
 
 if __name__ == '__main__':
