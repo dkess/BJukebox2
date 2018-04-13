@@ -1,6 +1,7 @@
 import asyncio
 import json
 from typing import List, NamedTuple, Optional
+import os
 
 import aiohttp
 from aiohttp import web
@@ -14,6 +15,7 @@ SongQueue = NamedTuple('SongQueue', [('user', str), ('songs', List[Song])])
 class State:
     def __init__(self, app, backend):
         self.current = None # type: Optional[Song]
+        self.current_user = None # type: Optional[str]
         self.queues = [] # type: List[SongQueue]
 
         self.app = app
@@ -28,7 +30,8 @@ class State:
             q['songs'] = [s._asdict() for s in q['songs']]
 
         return {
-            'current': self.current._asdict() if self.current else "noone",
+            'current': ({'name': self.current_user, 'song': self.current._asdict()}
+                        if self.current else "noone"),
             'queues': qs
         }
 
@@ -38,6 +41,7 @@ class State:
                 if self.current == None and self.queues:
                     # Pop from the queue
                     self.current = self.queues[0].songs.pop(0)
+                    self.current_user = self.queues[0].user
 
                     oldqueue = self.queues.pop(0)
                     if oldqueue.songs:
@@ -69,7 +73,10 @@ class State:
                 q = next(q for q in self.queues if q.user == user)
             except StopIteration:
                 q = SongQueue(user=user, songs=[])
-                self.queues.append(q)
+                if len(self.queues) >= 1 and self.queues[-1].user == self.current_user:
+                    self.queues.insert(-1, q)
+                else:
+                    self.queues.append(q)
 
             q.songs.append(song)
             print(self.asNestedDict())
@@ -88,6 +95,10 @@ class State:
 
 routes = web.RouteTableDef()
 
+@routes.get('/')
+async def index(request):
+    return web.FileResponse('static/index.html')
+
 @routes.get('/ws')
 async def websocket(request):
     ws = web.WebSocketResponse()
@@ -96,6 +107,7 @@ async def websocket(request):
     # TODO: validate
     username = await ws.receive_str()
     await ws.send_str('ok')
+    await ws.send_str(json.dumps(request.app['state'].asNestedDict()))
     request.app['connections'].append(ws.send_str)
     async for msg in ws:
         if msg.type != aiohttp.WSMsgType.TEXT:
@@ -118,7 +130,7 @@ async def websocket(request):
             except ValueError:
                 pass
         elif msg.data == 'skipme':
-            await request.app['state'].skip()
+            await request.app['state'].backend.skip()
         elif msg.data == 'volup':
             pass
         elif msg.data == 'voldown':
@@ -126,6 +138,7 @@ async def websocket(request):
 
     request.app['connections'].remove(ws.send_str)
     return ws
+
 
 async def app_factory():
     mpd_conn = mpd.MPDConnection('localhost', 6600)
@@ -137,8 +150,9 @@ async def app_factory():
     app['state'] = State(app, mpd_conn)
     app['state'].start_event_loop()
 
-    app['mpd'] = mpd_conn
-
+    project_root = os.path.dirname(os.path.realpath(__file__))
+    static_folder = os.path.join(project_root, 'static')
+    app.router.add_static('/static/', static_folder)
     app.add_routes(routes)
     return app
 

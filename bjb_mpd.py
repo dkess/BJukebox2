@@ -34,9 +34,6 @@ class MPDConnection:
         if self._adding_song:
             raise Exception
 
-        if not self.is_ready():
-            raise Exception
-
         self._adding_song = True
         self._playlist_empty.clear()
         print()

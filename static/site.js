@@ -35,7 +35,7 @@ function songDiv(song) {
 	a_thumb.target = "_blank";
 
 	var img_thumb = document.createElement("img");
-	img_thumb.src = song["thumb"];
+	img_thumb.src = song["thumbnail_url"];
 
 	div_image.appendChild(img_thumb);
 
@@ -127,7 +127,7 @@ var main_socket_handler = function (event) {
 			var div_name = document.createElement("div");
 			var span_name = document.createElement("span");
 			span_name.className = "name";
-			var queueName = queues[i]["name"];
+			var queueName = queues[i]["user"];
 			span_name.appendChild(document.createTextNode(queueName));
 			div_name.appendChild(span_name);
 			div_queue.appendChild(div_name);
