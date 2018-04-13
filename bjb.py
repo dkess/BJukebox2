@@ -10,6 +10,9 @@ import bjb_mpd as mpd
 import songinfo
 from songinfo import Song
 
+def validate_name(user: str) -> bool:
+    return 1 <= len(user) <= 20 and user.isalnum()
+
 SongQueue = NamedTuple('SongQueue', [('user', str), ('songs', List[Song])])
 
 class State:
@@ -104,8 +107,12 @@ async def websocket(request):
     ws = web.WebSocketResponse()
     await ws.prepare(request)
 
-    # TODO: validate
-    username = await ws.receive_str()
+    while True:
+        username = await ws.receive_str()
+        if validate_name(username):
+            break
+        await ws.send_str('error invalid')
+
     await ws.send_str('ok')
     await ws.send_str(json.dumps(request.app['state'].asNestedDict()))
     request.app['connections'].append(ws.send_str)
