@@ -44,4 +44,4 @@ async def get_streamurl(url: str) -> str:
     proc = await create
     line = await proc.stdout.readline()
     proc.kill()
-    return line
+    return line.decode().strip()
